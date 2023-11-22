@@ -1,5 +1,5 @@
 from Book import Book
-from SerializeFile import save_customer, modify_customer, read_customer
+from SerializeFile import write_to_file, update_file, read_from_file
 import PySimpleGUI as sG
 import re
 import operator
@@ -12,11 +12,11 @@ KEY_YEAR = 'year'
 KEY_POS = 'pos_file'
 KEY_TABLE = 'table'
 
-headings = ['ID', 'Title', 'ISBN', 'Author', 'Year', 'Pos']
+headings = ['ID', 'Title', 'ISBN-13', 'Author', 'Year', 'Pos']
 fields = {
     KEY_ID: 'Book ID:',
     KEY_TITLE: 'Title:',
-    KEY_ISBN: 'ISBN:',
+    KEY_ISBN: 'ISBN-13:',
     KEY_AUTHOR: 'Author:',
     KEY_YEAR: 'Year:',
     KEY_POS: 'Position in File'
@@ -24,8 +24,10 @@ fields = {
 
 filename = 'Book.dat'
 book_list = []
-pattern_email = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+# ISBN-13 with hyphens ("000-0-000-00000-0")
+pattern_isbn = r'\d{3}-\d{1}-\d{3}-\d{5}-\d{1}'
 pattern_id = r"\d{3}"  # three numbers
+pattern_year = r"\d{4}"  # four numbers
 try:
     book_file = open(filename, 'rb+')
 except FileNotFoundError:  # if file doesn't exist
@@ -34,7 +36,7 @@ except FileNotFoundError:  # if file doesn't exist
 
 def add_book(t_customer_interface, book):
     book_list.append(book)
-    save_customer(book_file, book)
+    write_to_file(book_file, book)
     t_customer_interface.append(book.get_attrs_list())
 
 
@@ -49,7 +51,7 @@ def del_customer(t_customer_interface, pos_in_table):
         book_list.remove(cdel)
         t_customer_interface.remove(t_customer_interface[pos_in_table])
         cdel.erased = True
-        modify_customer(book_file, cdel)
+        update_file(book_file, cdel)
 
 
 def update_customer(t_row_customer_interface, pos_in_file):
@@ -61,7 +63,7 @@ def update_customer(t_row_customer_interface, pos_in_file):
     if cdel is not None:
         cdel.set_customer(t_row_customer_interface[1], t_row_customer_interface[2], t_row_customer_interface[3],
                           t_row_customer_interface[4])
-        modify_customer(book_file, cdel)
+        update_file(book_file, cdel)
 
 
 def sort_table(table, cols):
@@ -79,12 +81,18 @@ def sort_table(table, cols):
     return table
 
 
-def valid_fields(c_id):
-    return re.match(pattern_id, c_id)
+def error_dialog(msg, title='Error'):
+    sG.Popup(msg, title=title, keep_on_top=True)
 
 
-def show_error_dialog(msg):
-    sG.Popup(msg, title='Error', keep_on_top=True)
+def valid_fields(*patterns, **fields):
+    # iterate over pairs of patterns and corresponding key-value pairs from fields
+    for pattern, (key, value) in zip(patterns, fields.items()):
+        # check if the value matches the pattern
+        if not re.match(pattern, str(value)):
+            error_dialog(f'The {key} field is not valid.')
+            return False
+    return True
 
 
 class Events:
@@ -103,23 +111,29 @@ def listen_events(window, table_data):
         row_to_update = []
         event, values = window.read()
         if values is None:
-            c_id = c_name = c_bill = c_phone = c_email = ""
+            c_id = c_title = c_isbn = c_author = c_year = ""
         else:
             c_id = values[KEY_ID]
-            c_name = values[KEY_TITLE]
-            c_bill = values[KEY_ISBN]
-            c_phone = values[KEY_AUTHOR]
-            c_email = values[KEY_YEAR]
+            c_title = values[KEY_TITLE]
+            c_isbn = values[KEY_ISBN]
+            c_author = values[KEY_AUTHOR]
+            c_year = values[KEY_YEAR]
+
+        def check_valid_fields():
+            # first we check if is any empty field
+            if "" in (c_id, c_title, c_isbn, c_author, c_year):
+                error_dialog("You can't leave any field empty.")
+                return False
+            return valid_fields(pattern_id, pattern_isbn, pattern_year, ID=c_id, ISBN=c_isbn, Year=c_year)
+
         match event:
             case sG.WIN_CLOSED:
                 return
             case Events.ADD:
-                if valid_fields(c_id):
+                if check_valid_fields():
                     add_book(table_data,
-                             Book(c_id, c_name, c_bill, c_phone, c_email, -1))
+                             Book(c_id, c_title, c_isbn, c_author, c_year, -1))
                     window[KEY_TABLE].update(table_data)
-                else:
-                    show_error_dialog('Error')
             case Events.DELETE if len(values[KEY_TABLE]) > 0:
                 del_customer(table_data, values[KEY_TABLE][0])
                 window[KEY_TABLE].update(table_data)
@@ -141,11 +155,11 @@ def listen_events(window, table_data):
                 window[KEY_AUTHOR].update('')
                 window[KEY_YEAR].update('')
                 window[KEY_POS].update('')
-            case Events.MODIFY if valid_fields(c_id):
+            case Events.MODIFY if check_valid_fields():
                 for t in table_data:
                     if t[-1] == int(values[KEY_POS]):
                         row_to_update = t
-                        t[1], t[2], t[3], t[4] = c_name, c_bill, c_phone, c_email
+                        t[1], t[2], t[3], t[4] = c_title, c_isbn, c_author, c_year
                         break
                 update_customer(row_to_update, int(values[KEY_POS]))
                 window[KEY_TABLE].update(table_data)
@@ -165,7 +179,7 @@ def interface():
     font1 = ('Arial', 12)
     sG.theme('TealMono')
     sG.set_options(font=font1)
-    read_customer(book_file, book_list)
+    read_from_file(book_file, book_list)
     table_data = [b.get_attrs_list() for b in book_list if not b.erased]
 
     layout = [

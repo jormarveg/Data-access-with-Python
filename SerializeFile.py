@@ -1,18 +1,18 @@
 import pickle
 
 
-def save_customer(f, o_c):
+def write_to_file(f, o_c):
     f.seek(0, 2)
     o_c.pos_file = f.tell()
     pickle.dump(o_c, f)
 
 
-def modify_customer(f, o_c):
+def update_file(f, o_c):
     f.seek(o_c.pos_file, 0)
     pickle.dump(o_c, f)
 
 
-def read_customer(f, l_c):
+def read_from_file(f, l_c):
     f.seek(0, 0)
     while True:
         try:
