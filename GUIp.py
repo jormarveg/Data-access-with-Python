@@ -1,47 +1,67 @@
-from Customer import Customer
+from Book import Book
 from SerializeFile import save_customer, modify_customer, read_customer
 import PySimpleGUI as sG
 import re
 import operator
 
-f_customer = open('Customer.dat', 'rb+')
-lCustomer = []
+KEY_ID = 'id'
+KEY_TITLE = 'title'
+KEY_ISBN = 'isbn'
+KEY_AUTHOR = 'author'
+KEY_YEAR = 'year'
+KEY_POS = 'pos_file'
+KEY_TABLE = 'table'
+
+headings = ['ID', 'Title', 'ISBN', 'Author', 'Year', 'Pos']
+fields = {
+    KEY_ID: 'Book ID:',
+    KEY_TITLE: 'Title:',
+    KEY_ISBN: 'ISBN:',
+    KEY_AUTHOR: 'Author:',
+    KEY_YEAR: 'Year:',
+    KEY_POS: 'Position in File'
+}
+
+filename = 'Book.dat'
+book_list = []
 pattern_email = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
-pattern_ID = r"\d{3}"
-pattern_phone = r"\d{3}-\d{6}"
+pattern_id = r"\d{3}"  # three numbers
+try:
+    book_file = open(filename, 'rb+')
+except FileNotFoundError:  # if file doesn't exist
+    book_file = open(filename, 'wb+')  # it creates it
 
 
-def add_customer(customer, t_customer_interface, o_customer):
-    customer.append(o_customer)
-    save_customer(f_customer, o_customer)
-    t_customer_interface.append(
-        [o_customer.id, o_customer.name, o_customer.bill, o_customer.phone, o_customer.email, o_customer.pos_file])
+def add_book(t_customer_interface, book):
+    book_list.append(book)
+    save_customer(book_file, book)
+    t_customer_interface.append(book.get_attrs_list())
 
 
-def del_customer(customer, t_customer_interface, pos_in_table):
+def del_customer(t_customer_interface, pos_in_table):
     pos_in_file = t_customer_interface[pos_in_table][-1]
     cdel = None
-    for o in customer:
+    for o in book_list:
         if o.customer_in_pos(pos_in_file):
             cdel = o
             break
     if cdel is not None:
-        customer.remove(cdel)
+        book_list.remove(cdel)
         t_customer_interface.remove(t_customer_interface[pos_in_table])
         cdel.erased = True
-        modify_customer(f_customer, cdel)
+        modify_customer(book_file, cdel)
 
 
-def update_customer(customer, t_row_customer_interface, pos_in_file):
+def update_customer(t_row_customer_interface, pos_in_file):
     cdel = None
-    for o in customer:
+    for o in book_list:
         if o.customer_in_pos(pos_in_file):
             cdel = o
             break
     if cdel is not None:
         cdel.set_customer(t_row_customer_interface[1], t_row_customer_interface[2], t_row_customer_interface[3],
                           t_row_customer_interface[4])
-        modify_customer(f_customer, cdel)
+        modify_customer(book_file, cdel)
 
 
 def sort_table(table, cols):
@@ -59,99 +79,117 @@ def sort_table(table, cols):
     return table
 
 
-def interface():
-    font1, font2 = ('Arial', 14), ('Arial', 16)
-    sG.theme('Purple')
-    sG.set_options(font=font1)
-    table_data = []
-    row_to_update = []
-    read_customer(f_customer, lCustomer)
-    for o in lCustomer:
-        if not o.erased:
-            table_data.append([o.id, o.name, o.bill, o.phone, o.email, o.pos_file])
+def valid_fields(c_id):
+    return re.match(pattern_id, c_id)
 
-    layout = [
-                 [sG.Push(), sG.Text('Customer CRUD'), sG.Push()]] + [
-                 [sG.Text(text), sG.Push(), sG.Input(key=key)] for key, text in Customer.fields.items()] + [
-                 [sG.Push()] +
-                 [sG.Button(button) for button in ('Add', 'Delete', 'Modify', 'Clear')] +
-                 [sG.Push()],
-                 [sG.Table(values=table_data, headings=Customer.headings, max_col_width=50, num_rows=10,
-                           display_row_numbers=False, justification='center', enable_events=True,
-                           enable_click_events=True,
-                           vertical_scroll_only=False, select_mode=sG.TABLE_SELECT_MODE_BROWSE,
-                           expand_x=True, bind_return_key=True, key='-Table-')],
-                 [sG.Button('Purge'), sG.Push(), sG.Button('Sort File')],
-             ]
-    sG.theme('DarkBlue4')
-    window = sG.Window('Customer Management with Files', layout, finalize=True)
-    window['-PosFile-'].update(disabled=True)
-    window['-Table-'].bind("<Double-Button-1>", " Double")
+
+def show_error_dialog(msg):
+    sG.Popup(msg, title='Error', keep_on_top=True)
+
+
+class Events:
+    """
+    Constants for the events
+    """
+    ADD = 'Add'
+    DELETE = 'Delete'
+    TABLE_DOUBLE_CLICK = f'{KEY_TABLE} Double'
+    CLEAR = 'Clear'
+    MODIFY = 'Modify'
+
+
+def listen_events(window, table_data):
     while True:
+        row_to_update = []
         event, values = window.read()
-        if event == sG.WIN_CLOSED:
-            break
-        if event == 'Add':
-            valida = False
-            if re.match(pattern_email, values['-Email-']):
-                if re.match(pattern_ID, values['-ID-']):
-                    if re.match(pattern_phone, values['-Phone-']):
-                        valida = True
-            if valida:
-                add_customer(lCustomer, table_data,
-                             Customer(values['-ID-'], values['-Name-'], values['-Bill-'], values['-Phone-'],
-                                      values['-Email-'], -1))
-                window['-Table-'].update(table_data)
-        if event == 'Delete' and len(values['-Table-']) > 0:
-            del_customer(lCustomer, table_data, values['-Table-'][0])
-            window['-Table-'].update(table_data)
-
-        if event == '-Table- Double' and len(values['-Table-']) > 0:
-            row = values['-Table-'][0]
-            window['-ID-'].update(disabled=True)
-            window['-ID-'].update(str(table_data[row][0]))
-            window['-Name-'].update(str(table_data[row][1]))
-            window['-Bill-'].update(str(table_data[row][2]))
-            window['-Phone-'].update(str(table_data[row][3]))
-            window['-Email-'].update(str(table_data[row][4]))
-            window['-PosFile-'].update(str(table_data[row][5]))
-        if event == 'Clear':
-            window['-ID-'].update(disabled=False)
-            window['-ID-'].update('')
-            window['-Name-'].update('')
-            window['-Bill-'].update('')
-            window['-Phone-'].update('')
-            window['-Email-'].update('')
-            window['-PosFile-'].update('')
-        if event == 'Modify':
-            valida = False
-            if re.match(pattern_email, values['-Email-']):
-                if re.match(pattern_ID, values['-ID-']):
-                    if re.match(pattern_phone, values['-Phone-']):
-                        valida = True
-            if valida:
+        if values is None:
+            c_id = c_name = c_bill = c_phone = c_email = ""
+        else:
+            c_id = values[KEY_ID]
+            c_name = values[KEY_TITLE]
+            c_bill = values[KEY_ISBN]
+            c_phone = values[KEY_AUTHOR]
+            c_email = values[KEY_YEAR]
+        match event:
+            case sG.WIN_CLOSED:
+                return
+            case Events.ADD:
+                if valid_fields(c_id):
+                    add_book(table_data,
+                             Book(c_id, c_name, c_bill, c_phone, c_email, -1))
+                    window[KEY_TABLE].update(table_data)
+                else:
+                    show_error_dialog('Error')
+            case Events.DELETE if len(values[KEY_TABLE]) > 0:
+                del_customer(table_data, values[KEY_TABLE][0])
+                window[KEY_TABLE].update(table_data)
+            case Events.TABLE_DOUBLE_CLICK if len(values[KEY_TABLE]) > 0:
+                # when double-clicking on a record in the table, its values are set in the fields
+                row = values[KEY_TABLE][0]
+                window[KEY_ID].update(disabled=True)
+                window[KEY_ID].update(str(table_data[row][0]))
+                window[KEY_TITLE].update(str(table_data[row][1]))
+                window[KEY_ISBN].update(str(table_data[row][2]))
+                window[KEY_AUTHOR].update(str(table_data[row][3]))
+                window[KEY_YEAR].update(str(table_data[row][4]))
+                window[KEY_POS].update(str(table_data[row][5]))
+            case Events.CLEAR:
+                window[KEY_ID].update(disabled=False)
+                window[KEY_ID].update('')
+                window[KEY_TITLE].update('')
+                window[KEY_ISBN].update('')
+                window[KEY_AUTHOR].update('')
+                window[KEY_YEAR].update('')
+                window[KEY_POS].update('')
+            case Events.MODIFY if valid_fields(c_id):
                 for t in table_data:
-                    if t[-1] == int(values['-PosFile-']):
+                    if t[-1] == int(values[KEY_POS]):
                         row_to_update = t
-                        t[1], t[2], t[3], t[4] = values['-Name-'], values['-Bill-'], values['-Phone-'], values[
-                            '-Email-']
+                        t[1], t[2], t[3], t[4] = c_name, c_bill, c_phone, c_email
                         break
-                update_customer(lCustomer, row_to_update, int(values['-PosFile-']))
-                window['-Table-'].update(table_data)
-                window['-ID-'].update(disabled=False)
+                update_customer(row_to_update, int(values[KEY_POS]))
+                window[KEY_TABLE].update(table_data)
+                window[KEY_ID].update(disabled=False)
         if isinstance(event, tuple):
             print(event)
             print(values)
             # TABLE CLICKED Event has value in format ('-TABLE=', '+CLICKED+', (row,col))
             # You can also call Table.get_last_clicked_position to get the cell clicked
-            if event[0] == '-Table-':
-                if event[2][0] == -1:  # Header was clicked
-                    col_num_clicked = event[2][1]
-                    table_data = sort_table(table_data, (col_num_clicked, 0))
-                    window['-Table-'].update(table_data)
+            if event[0] == KEY_TABLE and event[2][0] == -1:  # Header was clicked
+                col_num_clicked = event[2][1]
+                table_data = sort_table(table_data, (col_num_clicked, 0))
+                window[KEY_TABLE].update(table_data)
 
+
+def interface():
+    font1 = ('Arial', 12)
+    sG.theme('TealMono')
+    sG.set_options(font=font1)
+    read_customer(book_file, book_list)
+    table_data = [b.get_attrs_list() for b in book_list if not b.erased]
+
+    layout = [
+                 [sG.Push(), sG.Text('Book CRUD'), sG.Push()]] + [
+                 [sG.Text(text), sG.Push(), sG.Input(key=key)] for key, text in fields.items()] + [
+                 [sG.Push()] +
+                 [sG.Button(button) for button in (Events.ADD, Events.DELETE, Events.MODIFY, Events.CLEAR)] +
+                 [sG.Push()],
+                 [sG.Table(values=table_data, headings=headings, max_col_width=50, num_rows=10,
+                           display_row_numbers=False, justification='center', enable_events=True,
+                           enable_click_events=True,
+                           vertical_scroll_only=False, select_mode=sG.TABLE_SELECT_MODE_BROWSE,
+                           expand_x=True, bind_return_key=True, key=KEY_TABLE)],
+                 [sG.Button('Purge'), sG.Push(), sG.Button('Sort File')],
+             ]
+    window = sG.Window('Book Management with Files', layout, finalize=True)
+    window.set_min_size((800, 0))  # sets a minimum width
+    window.move_to_center()  # centering the window
+    window[KEY_POS].update(disabled=True)
+    window[KEY_TABLE].bind("<Double-Button-1>", " Double")
+
+    listen_events(window, table_data)  # listen until the user closes the window
     window.close()
 
 
 interface()
-f_customer.close()
+book_file.close()
