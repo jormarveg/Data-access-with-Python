@@ -48,12 +48,6 @@ class Book:
     def set_pos(self, pos):
         self.book_info[Keys.POS] = pos
 
-    def get_attrs_dict(self):
-        """
-        # The get_attrs_dict method returns the dictionary containing all attributes.
-        """
-        return self.book_info
-
     def get_attrs_list(self):
         """
         # The get_attrs_dict method returns the list containing all attributes.

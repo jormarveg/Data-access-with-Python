@@ -1,8 +1,9 @@
 from Book import Book, Keys
-from SerializeFile import write_to_file, update_file, read_from_file
 import PySimpleGUI as sG
 import re
 import operator
+
+from XMLHandler import read_books_from_xml, save_book_to_xml, delete_book_from_xml, update_book_in_xml, purge_xml
 
 headings = ['ID', 'Title', 'ISBN-13', 'Author', 'Year', 'Pos']
 fields = {
@@ -14,7 +15,7 @@ fields = {
     Keys.POS: 'Position in File'
 }
 KEY_TABLE = 'table'
-filename = 'Book.dat'
+filename = 'books.xml'
 book_list = []
 pattern_isbn = r"\d{13}"  # 13 digits (isbn-13)
 pattern_id = r"\d{3}"  # three digits
@@ -23,7 +24,7 @@ pattern_year = r"\d{4}"  # four digits
 
 def add_book(t_book_interface, book):
     book_list.append(book)
-    write_to_file(filename, book)
+    save_book_to_xml(book, filename)
     t_book_interface.append(book.get_attrs_list())
 
 
@@ -38,7 +39,7 @@ def del_book(t_book_interface, pos_in_table):
         book_list.remove(c_del)
         t_book_interface.remove(t_book_interface[pos_in_table])
         c_del.erased = True
-        update_file(filename, c_del)
+        delete_book_from_xml(c_del, filename)
 
 
 def update_book(t_row_book_interface, pos_in_file):
@@ -50,7 +51,7 @@ def update_book(t_row_book_interface, pos_in_file):
     if c_up is not None:
         c_up.set_book(t_row_book_interface[1], t_row_book_interface[2], t_row_book_interface[3],
                       t_row_book_interface[4])
-        update_file(filename, c_up)
+        update_book_in_xml(c_up, filename)
 
 
 def sort_table(table, cols):
@@ -70,6 +71,20 @@ def sort_table(table, cols):
 
 def error_dialog(msg, title='Error'):
     sG.Popup(msg, title=title, keep_on_top=True)
+
+
+def id_exists(id):
+    """
+    Check if a given ID exists in the list.
+
+    :param id: ID to check.
+    :return: True if the ID exists, False otherwise.
+    """
+    for book in book_list:
+        if book.book_info[Keys.ID] == id:
+            error_dialog("There cannot be two books with the same ID.")
+            return True
+    return False
 
 
 def valid_fields(*patterns, **fields):
@@ -95,6 +110,8 @@ class Events:
     TABLE_DOUBLE_CLICK = f'{KEY_TABLE} Double'
     CLEAR = 'Clear'
     MODIFY = 'Modify'
+    PURGE = 'Purge'
+    SORT = 'Sort'
 
 
 def listen_events(window, table_data):
@@ -121,7 +138,7 @@ def listen_events(window, table_data):
             case sG.WIN_CLOSED:
                 return
             case Events.ADD:
-                if check_valid_fields():
+                if check_valid_fields() and not id_exists(c_id):
                     add_book(table_data, Book(c_id, c_title, c_isbn, c_author, c_year, -1))
                     window[KEY_TABLE].update(table_data)
             case Events.DELETE if len(values[KEY_TABLE]) > 0:
@@ -154,6 +171,13 @@ def listen_events(window, table_data):
                 update_book(row_to_update, int(values[Keys.POS]))
                 window[KEY_TABLE].update(table_data)
                 window[Keys.ID].update(disabled=False)
+            case Events.PURGE:
+                if purge_xml(filename):
+                    sG.Popup('File successfully purged.', title='Purge', keep_on_top=True)
+                else:
+                    sG.Popup('Nothing to purge', title='Purge', keep_on_top=True)
+            case Events.SORT:
+                pass
         if isinstance(event, tuple):
             print(event)
             print(values)
@@ -169,7 +193,7 @@ def interface():
     font1 = ('Consolas', 15)
     sG.theme('TealMono')
     sG.set_options(font=font1)
-    read_from_file(filename, book_list)
+    read_books_from_xml(filename, book_list)
     table_data = [b.get_attrs_list() for b in book_list if not b.erased]
     layout = [
                  [sG.Push(), sG.Text('Book CRUD'), sG.Push()]] + [
