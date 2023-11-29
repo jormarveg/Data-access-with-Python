@@ -1,69 +1,56 @@
-from Book import Book
+from Book import Book, Keys
 from SerializeFile import write_to_file, update_file, read_from_file
 import PySimpleGUI as sG
 import re
 import operator
 
-KEY_ID = 'id'
-KEY_TITLE = 'title'
-KEY_ISBN = 'isbn'
-KEY_AUTHOR = 'author'
-KEY_YEAR = 'year'
-KEY_POS = 'pos_file'
-KEY_TABLE = 'table'
-
 headings = ['ID', 'Title', 'ISBN-13', 'Author', 'Year', 'Pos']
 fields = {
-    KEY_ID: 'Book ID:',
-    KEY_TITLE: 'Title:',
-    KEY_ISBN: 'ISBN-13:',
-    KEY_AUTHOR: 'Author:',
-    KEY_YEAR: 'Year:',
-    KEY_POS: 'Position in File'
+    Keys.ID: 'Book ID:',
+    Keys.TITLE: 'Title:',
+    Keys.ISBN: 'ISBN-13:',
+    Keys.AUTHOR: 'Author:',
+    Keys.YEAR: 'Year:',
+    Keys.POS: 'Position in File'
 }
-
+KEY_TABLE = 'table'
 filename = 'Book.dat'
 book_list = []
-# ISBN-13 with hyphens ("000-0-000-00000-0")
-pattern_isbn = r'\d{3}-\d{1}-\d{3}-\d{5}-\d{1}'
-pattern_id = r"\d{3}"  # three numbers
-pattern_year = r"\d{4}"  # four numbers
-try:
-    book_file = open(filename, 'rb+')
-except FileNotFoundError:  # if file doesn't exist
-    book_file = open(filename, 'wb+')  # it creates it
+pattern_isbn = r"\d{13}"  # 13 digits (isbn-13)
+pattern_id = r"\d{3}"  # three digits
+pattern_year = r"\d{4}"  # four digits
 
 
-def add_book(t_customer_interface, book):
+def add_book(t_book_interface, book):
     book_list.append(book)
-    write_to_file(book_file, book)
-    t_customer_interface.append(book.get_attrs_list())
+    write_to_file(filename, book)
+    t_book_interface.append(book.get_attrs_list())
 
 
-def del_customer(t_customer_interface, pos_in_table):
-    pos_in_file = t_customer_interface[pos_in_table][-1]
-    cdel = None
+def del_book(t_book_interface, pos_in_table):
+    pos_in_file = t_book_interface[pos_in_table][-1]
+    c_del = None
     for o in book_list:
-        if o.customer_in_pos(pos_in_file):
-            cdel = o
+        if o.book_in_pos(pos_in_file):
+            c_del = o
             break
-    if cdel is not None:
-        book_list.remove(cdel)
-        t_customer_interface.remove(t_customer_interface[pos_in_table])
-        cdel.erased = True
-        update_file(book_file, cdel)
+    if c_del is not None:
+        book_list.remove(c_del)
+        t_book_interface.remove(t_book_interface[pos_in_table])
+        c_del.erased = True
+        update_file(filename, c_del)
 
 
-def update_customer(t_row_customer_interface, pos_in_file):
-    cdel = None
+def update_book(t_row_book_interface, pos_in_file):
+    c_up = None
     for o in book_list:
-        if o.customer_in_pos(pos_in_file):
-            cdel = o
+        if o.book_in_pos(pos_in_file):
+            c_up = o
             break
-    if cdel is not None:
-        cdel.set_customer(t_row_customer_interface[1], t_row_customer_interface[2], t_row_customer_interface[3],
-                          t_row_customer_interface[4])
-        update_file(book_file, cdel)
+    if c_up is not None:
+        c_up.set_book(t_row_book_interface[1], t_row_book_interface[2], t_row_book_interface[3],
+                      t_row_book_interface[4])
+        update_file(filename, c_up)
 
 
 def sort_table(table, cols):
@@ -88,6 +75,10 @@ def error_dialog(msg, title='Error'):
 def valid_fields(*patterns, **fields):
     # iterate over pairs of patterns and corresponding key-value pairs from fields
     for pattern, (key, value) in zip(patterns, fields.items()):
+        # if it's ISBN, remove the hyphens
+        if key == 'ISBN':
+            value = fields[key].replace("-", "")
+            print(value)
         # check if the value matches the pattern
         if not re.match(pattern, str(value)):
             error_dialog(f'The {key} field is not valid.')
@@ -113,11 +104,11 @@ def listen_events(window, table_data):
         if values is None:
             c_id = c_title = c_isbn = c_author = c_year = ""
         else:
-            c_id = values[KEY_ID]
-            c_title = values[KEY_TITLE]
-            c_isbn = values[KEY_ISBN]
-            c_author = values[KEY_AUTHOR]
-            c_year = values[KEY_YEAR]
+            c_id = values[Keys.ID]
+            c_title = values[Keys.TITLE]
+            c_isbn = values[Keys.ISBN]
+            c_author = values[Keys.AUTHOR]
+            c_year = values[Keys.YEAR]
 
         def check_valid_fields():
             # first we check if is any empty field
@@ -131,39 +122,38 @@ def listen_events(window, table_data):
                 return
             case Events.ADD:
                 if check_valid_fields():
-                    add_book(table_data,
-                             Book(c_id, c_title, c_isbn, c_author, c_year, -1))
+                    add_book(table_data, Book(c_id, c_title, c_isbn, c_author, c_year, -1))
                     window[KEY_TABLE].update(table_data)
             case Events.DELETE if len(values[KEY_TABLE]) > 0:
-                del_customer(table_data, values[KEY_TABLE][0])
+                del_book(table_data, values[KEY_TABLE][0])
                 window[KEY_TABLE].update(table_data)
             case Events.TABLE_DOUBLE_CLICK if len(values[KEY_TABLE]) > 0:
                 # when double-clicking on a record in the table, its values are set in the fields
                 row = values[KEY_TABLE][0]
-                window[KEY_ID].update(disabled=True)
-                window[KEY_ID].update(str(table_data[row][0]))
-                window[KEY_TITLE].update(str(table_data[row][1]))
-                window[KEY_ISBN].update(str(table_data[row][2]))
-                window[KEY_AUTHOR].update(str(table_data[row][3]))
-                window[KEY_YEAR].update(str(table_data[row][4]))
-                window[KEY_POS].update(str(table_data[row][5]))
+                window[Keys.ID].update(disabled=True)
+                window[Keys.ID].update(str(table_data[row][0]))
+                window[Keys.TITLE].update(str(table_data[row][1]))
+                window[Keys.ISBN].update(str(table_data[row][2]))
+                window[Keys.AUTHOR].update(str(table_data[row][3]))
+                window[Keys.YEAR].update(str(table_data[row][4]))
+                window[Keys.POS].update(str(table_data[row][5]))
             case Events.CLEAR:
-                window[KEY_ID].update(disabled=False)
-                window[KEY_ID].update('')
-                window[KEY_TITLE].update('')
-                window[KEY_ISBN].update('')
-                window[KEY_AUTHOR].update('')
-                window[KEY_YEAR].update('')
-                window[KEY_POS].update('')
+                window[Keys.ID].update(disabled=False)
+                window[Keys.ID].update('')
+                window[Keys.TITLE].update('')
+                window[Keys.ISBN].update('')
+                window[Keys.AUTHOR].update('')
+                window[Keys.YEAR].update('')
+                window[Keys.POS].update('')
             case Events.MODIFY if check_valid_fields():
                 for t in table_data:
-                    if t[-1] == int(values[KEY_POS]):
+                    if t[-1] == int(values[Keys.POS]):
                         row_to_update = t
                         t[1], t[2], t[3], t[4] = c_title, c_isbn, c_author, c_year
                         break
-                update_customer(row_to_update, int(values[KEY_POS]))
+                update_book(row_to_update, int(values[Keys.POS]))
                 window[KEY_TABLE].update(table_data)
-                window[KEY_ID].update(disabled=False)
+                window[Keys.ID].update(disabled=False)
         if isinstance(event, tuple):
             print(event)
             print(values)
@@ -176,15 +166,15 @@ def listen_events(window, table_data):
 
 
 def interface():
-    font1 = ('Arial', 12)
+    font1 = ('Consolas', 15)
     sG.theme('TealMono')
     sG.set_options(font=font1)
-    read_from_file(book_file, book_list)
+    read_from_file(filename, book_list)
     table_data = [b.get_attrs_list() for b in book_list if not b.erased]
-
     layout = [
                  [sG.Push(), sG.Text('Book CRUD'), sG.Push()]] + [
-                 [sG.Text(text), sG.Push(), sG.Input(key=key)] for key, text in fields.items()] + [
+                 # each field has a width of 50
+                 [sG.Text(text), sG.Push(), sG.Input(key=key, size=50)] for key, text in fields.items()] + [
                  [sG.Push()] +
                  [sG.Button(button) for button in (Events.ADD, Events.DELETE, Events.MODIFY, Events.CLEAR)] +
                  [sG.Push()],
@@ -198,12 +188,16 @@ def interface():
     window = sG.Window('Book Management with Files', layout, finalize=True)
     window.set_min_size((800, 0))  # sets a minimum width
     window.move_to_center()  # centering the window
-    window[KEY_POS].update(disabled=True)
+    window[Keys.POS].update(disabled=True)
     window[KEY_TABLE].bind("<Double-Button-1>", " Double")
 
     listen_events(window, table_data)  # listen until the user closes the window
     window.close()
 
 
-interface()
-book_file.close()
+def main():
+    interface()
+
+
+if __name__ == '__main__':
+    main()

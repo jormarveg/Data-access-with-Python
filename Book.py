@@ -1,29 +1,61 @@
+class Keys:
+    ID = 'id'
+    TITLE = 'title'
+    ISBN = 'isbn'
+    AUTHOR = 'author'
+    YEAR = 'year'
+    POS = 'pos_file'
+
+
 class Book:
-    # __init__ is called when the object is created
+    # The __init__ method is called when the object is created.
     def __init__(self, id, title, isbn, author, year, pos_file):
-        # Atributos de instancia
-        self.id = id
-        self.title = title
-        self.isbn = isbn
-        self.author = author
-        self.year = year
-        self.pos_file = pos_file
+        # Instance attributes stored in a dictionary
+        self.book_info = {
+            Keys.ID: id,
+            Keys.TITLE: title,
+            Keys.ISBN: isbn,
+            Keys.AUTHOR: author,
+            Keys.YEAR: year,
+            Keys.POS: pos_file,
+        }
         self.erased = False
 
-    def __eq__(self, o_c):
-        return o_c.pos_file == self.pos_file
+    # The __eq__ method defines equality based on the 'pos_file' attribute.
+    def __eq__(self, other_book):
+        return other_book.book_info[Keys.POS] == self.book_info[Keys.POS]
 
+    # The __str__ method returns a string representation of the object.
     def __str__(self):
-        return str(self.id) + str(self.title) + str(self.isbn) + str(self.author) + str(self.year) + str(self.pos_file)
+        return str(self.book_info)
 
-    def customer_in_pos(self, pos):
-        return self.pos_file == pos
+    # The book_in_pos method checks if the book is in a specific position.
+    def book_in_pos(self, pos):
+        return self.book_info[Keys.POS] == pos
 
-    def set_customer(self, name, isbn, author, year):
-        self.title = name
-        self.isbn = isbn
-        self.author = author
-        self.year = year
+    # The set_book method updates the book's information.
+    def set_book(self, title, isbn, author, year):
+        self.book_info.update({
+            Keys.TITLE: title,
+            Keys.ISBN: isbn,
+            Keys.AUTHOR: author,
+            Keys.YEAR: year
+        })
+
+    def get_pos(self):
+        return self.book_info[Keys.POS]
+
+    def set_pos(self, pos):
+        self.book_info[Keys.POS] = pos
+
+    def get_attrs_dict(self):
+        """
+        # The get_attrs_dict method returns the dictionary containing all attributes.
+        """
+        return self.book_info
 
     def get_attrs_list(self):
-        return [self.id, self.title, self.isbn, self.author, self.year, self.pos_file]
+        """
+        # The get_attrs_dict method returns the list containing all attributes.
+        """
+        return list(self.book_info.values())
