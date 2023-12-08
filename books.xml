@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<library>
+    <book>
+        <id>001</id>
+        <title>The Great Gatsby</title>
+        <isbn>978-0-7432-7356-5</isbn>
+        <author>F. Scott Fitzgerald</author>
+        <year>1925</year>
+        <pos_file>1</pos_file>
+        <erased>False</erased>
+    </book>
+    <book>
+        <id>002</id>
+        <title>To Kill a Mockingbird</title>
+        <isbn>978-0-06-112008-4</isbn>
+        <author>Harper Lee</author>
+        <year>1960</year>
+        <pos_file>2</pos_file>
+        <erased>False</erased>
+    </book>
+    <book>
+        <id>003</id>
+        <title>1984</title>
+        <isbn>978-0-452-28423-4</isbn>
+        <author>George Orwell</author>
+        <year>1949</year>
+        <pos_file>3</pos_file>
+        <erased>False</erased>
+    </book>
+    <book>
+        <id>004</id>
+        <title>Brave New World</title>
+        <isbn>978-0-06-085052-4</isbn>
+        <author>Aldous Huxley</author>
+        <year>1932</year>
+        <pos_file>4</pos_file>
+        <erased>False</erased>
+    </book>
+    <book>
+        <id>005</id>
+        <title>The Catcher in the Rye</title>
+        <isbn>978-0-316-76948-0</isbn>
+        <author>J.D. Salinger</author>
+        <year>1951</year>
+        <pos_file>5</pos_file>
+        <erased>False</erased>
+    </book>
+    <book>
+        <id>006</id>
+        <title>One Hundred Years of Solitude</title>
+        <isbn>978-0-06-112008-4</isbn>
+        <author>Gabriel García Márquez</author>
+        <year>1967</year>
+        <pos_file>6</pos_file>
+        <erased>False</erased>
+    </book>
+    <book>
+        <id>007</id>
+        <title>Lord of the Rings</title>
+        <isbn>978-0-395-19395-4</isbn>
+        <author>J.R.R. Tolkien</author>
+        <year>1954</year>
+        <pos_file>7</pos_file>
+        <erased>False</erased>
+    </book>
+</library>
